@@ -25,7 +25,7 @@ from infer_utils import load_model
 #from dlamodel import get_pose_net
 #from centernet_resnet import resnet_18
 
-folder = "/home/rivian/Desktop/Datasets/derpet_v4_label_tf"
+folder = "/home/rivian/Desktop/Datasets/Barcode.v1i.voc"
 
 input_shape = (512,512)
 batch_size = 16
@@ -98,7 +98,7 @@ model_train = model.train()
 
 cudnn.benchmark = True
 model_train = model_train.cuda()
-
+model_train = torch.compile(model_train)
 
 Init_lr = 5e-4
 Min_lr  = Init_lr * 0.01

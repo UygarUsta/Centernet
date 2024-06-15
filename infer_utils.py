@@ -28,7 +28,7 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (512,
     image = np.array(image)
     fpre = time.time()
     print(f"Preprocessing took: {fpre - fps1} ms")
-
+    box_annos = []
     try:
         f1 = time.time()
         with torch.no_grad():
@@ -64,6 +64,7 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (512,
             ymax = int(ymax)
             class_label = label
             name = classes[class_label]
+            box_annos.append([xmin,ymin,xmax,ymax,str(name),conf])
             cv2.rectangle(image,(xmin,ymin),(xmax,ymax),(0,255,0),2)
             cv2.putText(image,str(name),(xmin-3,ymin),cv2.FONT_HERSHEY_COMPLEX,1,(255,0,255),2)
             cv2.putText(image,str(conf),(xmax-3,ymin),cv2.FONT_HERSHEY_COMPLEX,1,(255,0,255),2)
@@ -77,7 +78,7 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (512,
     cv2.putText(image,f'FPS:{fps:.2f}',(200,100),cv2.FONT_HERSHEY_COMPLEX,1,(255,0,255),2)
         #print(f"Could not infer an error occured: {e}")
 
-    return image
+    return image,box_annos
             
 def load_model(model,model_path):
     device = "cuda"

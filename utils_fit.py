@@ -117,15 +117,18 @@ def fit_one_epoch(model_train, model,optimizer, epoch, epoch_step, epoch_step_va
             torch.save(model.state_dict(), os.path.join(".", 'ep%03d-loss%.3f-val_loss%.3f.pth' % (epoch + 1, total_loss / epoch_step, val_loss / epoch_step_val)))
         
         calculate_eval(model,cocoGt,classes,folder)
-        cocoDt = cocoGt.loadRes("detection_results.json")
-        cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
-        cocoEval.evaluate()
-        cocoEval.accumulate()
-        cocoEval.summarize()
+        try:
+            cocoDt = cocoGt.loadRes("detection_results.json")
+            cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
+            cocoEval.evaluate()
+            cocoEval.accumulate()
+            cocoEval.summarize()
 
-        mean_ap = cocoEval.stats[0]  # This is the mAP at IoU thresholds from .50 to .95
-        mean_ap_05 = cocoEval.stats[1]
-        mean_ap_075 = cocoEval.stats[2] 
+            mean_ap = cocoEval.stats[0]  # This is the mAP at IoU thresholds from .50 to .95
+            mean_ap_05 = cocoEval.stats[1]
+            mean_ap_075 = cocoEval.stats[2] 
+        except:
+            mean_ap,mean_ap_05,mean_ap_075 = 0.0,0.0,0.0        
 
         print(f"Mean Average Precision (mAP) across IoU thresholds [0.50, 0.95]: {mean_ap:.3f}")
         if mean_ap > best_mean_AP:
