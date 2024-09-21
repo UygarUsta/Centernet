@@ -38,7 +38,7 @@ def xml_to_coco_json(xml_dir, output_json_path):
             
             # Process each object in the image
             for obj in root.findall('object'):
-                category = obj.find('name').text
+                category = obj.find('name').text.upper()
                 if category not in category_dict:
                     category_dict[category] = len(category_dict) + 1
                     coco_data["categories"].append({
@@ -80,7 +80,7 @@ def extract_coordinates(file_path,classes):
         coords = []    
         # Extracting coordinates from bndbox
         bndbox = obj.find('bndbox')
-        name = obj.find('name').text
+        name = obj.find('name').text.upper()
         if bndbox is not None:
             xmin = int(float(str(bndbox.find('xmin').text)))
             ymin = int(float(str(bndbox.find('ymin').text)))

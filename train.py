@@ -21,14 +21,14 @@ from torch.utils.data import DataLoader
 from utils_fit import worker_init_fn,fit_one_epoch,seed_everything
 from functools import partial
 from CenternetPlus.centernet_plus import CenterNetPlus
-from infer_utils import load_model
+from infer_utils import load_model,hardnet_load_model
 #from dlamodel import get_pose_net
 #from centernet_resnet import resnet_18
 
-folder = "/home/rivian/Desktop/Datasets/Barcode.v1i.voc"
+folder = "/home/rivian/Desktop/Datasets/derpet_v4_label_tf"
 
-input_shape = (512,512)
-batch_size = 16
+input_shape = (320,320)
+batch_size = 8#16
 epochs = 100
 num_workers = 8
 optimizer_type = "adam"
@@ -58,7 +58,16 @@ with open("classes.txt","w") as f:
         f.write("\n")
 
 pretrained = True
-model_type = "CenterNetPlus"
+model_type = "shufflenet"
+model_path = "hardnet85_base.pth"
+
+if model_type == "shufflenet":
+    from lib.core.model.centernet import CenterNet
+    model = CenterNet(nc=len(classes))
+    if model_path != "":
+        model = load_model(model,model_path)
+
+
 
 if model_type == "resnet50":
     model = CenterNet_Resnet50(len(classes), pretrained = pretrained)
@@ -74,8 +83,42 @@ if model_type == "CenterNetPlus":
     if model_path != "":
         model = load_model(model,model_path)
 
-# if model_type == "DLA":
-#     model = get_pose_net("34",{"hm":len(classes),"wh":2,"offset":2})   
+
+if model_type == "detr":
+    from detr.detrmodel import *
+    hidden_dim = 256
+    nheads = 8
+    num_encoder_layers = 6
+    num_decoder_layers = 6
+    model = DETR(len(classes),hidden_dim,nheads,num_encoder_layers,num_decoder_layers)
+    model_path = ""
+    device = "cuda"
+    if model_path != "":
+        model = load_model(model,model_path)
+
+if model_type == "timmodel":
+    from timmodel.timmodel import *
+    model = centernet(classes)
+    model_path = ""
+    device = "cuda"
+    if model_path != "":
+        model = load_model(model,model_path)
+
+
+if model_type == "DLA":
+    from dlamodel import * 
+    device = "cuda"
+    model = get_pose_net("34",{"hm":len(classes),"wh":2,"offset":2})
+    if model_path != "":
+        model = load_model(model,model_path)   
+
+if model_type == "hardnet":
+    from hardnet import get_pose_net
+    device = "cuda"
+    model = get_pose_net(85,{"hm":len(classes),"wh":2,"offset":2})
+    if model_path != "":
+        model = hardnet_load_model(model,model_path)
+
 
 # if model_type == "resnet18":
 #     model = resnet_18(classes)
@@ -87,7 +130,7 @@ val_dataset = CenternetDataset(val_images,val_annotations,input_shape,classes,le
 
 cuda = True
 
-fp16 = True
+fp16 = False
 if fp16:
     from torch.cuda.amp import GradScaler as GradScaler
     scaler = GradScaler()
@@ -98,7 +141,7 @@ model_train = model.train()
 
 cudnn.benchmark = True
 model_train = model_train.cuda()
-model_train = torch.compile(model_train)
+#model_train = torch.compile(model_train)
 
 Init_lr = 5e-4
 Min_lr  = Init_lr * 0.01
@@ -109,6 +152,7 @@ lr_limit_max    = 5e-4 if optimizer_type == 'adam' else 5e-2
 lr_limit_min    = 2.5e-4 if optimizer_type == 'adam' else 5e-4
 Init_lr_fit     = min(max(batch_size / nbs * Init_lr, lr_limit_min), lr_limit_max)
 Min_lr_fit      = min(max(batch_size / nbs * Min_lr, lr_limit_min * 1e-2), lr_limit_max * 1e-2)
+
 
 #---------------------------------------#
 #   根据optimizer_type选择优化器

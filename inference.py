@@ -16,54 +16,118 @@ for i in f:
 print(classes)
 
 
-folder = "/home/rivian/Desktop/Datasets/coco_mini_train"
+folder = "/home/rivian/Desktop/Datasets/derpet_v4_label_tf" #"/home/rivian/Desktop/Datasets/coco_mini_train"
 folder = os.path.join(folder,"val_images") #place to val
 
-model_path = "barcode_best_epoch_weights.pth"
+model_path = "best_epoch_weights.pth" #"pretrained-hardnet.pth"
 device = "cuda"
+model_type = "shufflenet"
 
 
-CPlus = True
-if CPlus == False:
+if model_type == "shufflenet":
+    from lib.core.model.centernet import CenterNet
+    conf = 0.2
+    model = CenterNet(nc=len(classes))
+    if model_path != "":
+        model = load_model(model,model_path)
+
+if model_type == "resnet50":
     pretrained = True
     conf = 0.2
     model = CenterNet_Resnet50(len(classes), pretrained = pretrained)
     if model_path != "":
         model = load_model(model,model_path)
 
-else:
+if model_type == "CenterNetPlus":
     conf = 0.4
     model = CenterNetPlus(True,len(classes),'r18')
     if model_path != "":
         model = load_model(model,model_path)
 
+
+if model_type == "detr":
+    from detr.detrmodel import *
+    hidden_dim = 256
+    nheads = 8
+    num_encoder_layers = 6
+    num_decoder_layers = 6
+    model = DETR(len(classes),hidden_dim,nheads,num_encoder_layers,num_decoder_layers)
+    conf = 0.7
+    #model_path = ""
+    device = "cuda"
+    if model_path != "":
+        model = load_model(model,model_path)
+
+if model_type == "timmodel":
+    from timmodel.timmodel import *
+    conf = 0.7
+    model = centernet(classes)
+    model_path = ""
+    device = "cuda"
+    if model_path != "":
+        model = load_model(model,model_path)
+
+if model_type == "DLA":
+    from dlamodel import * 
+    conf = 0.1
+    device = "cuda"
+    model = get_pose_net("34",{"hm":len(classes),"wh":2,"offset":2})
+    if model_path != "":
+        model = load_model(model,model_path)   
+
+if model_type == "hardnet":
+    from hardnet import get_pose_net
+    device = "cuda"
+    conf = 0.2
+    model = get_pose_net(85,{"hm":len(classes),"offset":2,"wh":2})
+    if model_path != "":
+        model = load_model(model,model_path)
+
 model.cuda()
 
-model = torch.compile(model) #experimental
+#model = torch.compile(model) #experimental
 
+model.eval()
 video = True
-half = True 
+half = False 
+cpu = True 
+trace = True 
+
+
+if cpu:
+    model.cpu()
+    device = torch.device("cpu")
 
 if half:
     model.half()
 
-#video_path = "/home/rivian/Desktop/bottle-detection.mp4"   #17_2022-11-09-14.26.56_derpet-converted.mp4"
-video_path = 0
+if trace:
+    input_height = 320
+    input_width = 320
+    dummy_input = torch.randn(1, 3, input_height, input_width).to(device)
+    print("Start Tracing")
+    model = torch.jit.trace(model, dummy_input)
+    print("End Tracing")
+
+
+
+video_path = "/home/rivian/Desktop/2_2023-07-31-11.36.49_novis_output.mp4"
+#video_path = 0
 if video:
     cap = cv2.VideoCapture(video_path)
     while 1:
         ret,img = cap.read()
-        image,annos = infer_image(model,img,classes,conf,half,input_shape=(512,512))
-        print(annos)
+        image,annos = infer_image(model,img,classes,conf,half,input_shape=(320,320),cpu=cpu)
+        #print(annos)
         cv2.imshow("img",image)
         ch = cv2.waitKey(1)
         if ch == ord("q"): break
 
 
 else:
-    files = glob(folder+"/*.jpg")
+    files = glob(folder+"/*.jpg") + glob(folder+"/*.png")
     for i in files:
-        image,annos = infer_image(model,i,classes,conf,half)
+        image,annos = infer_image(model,i,classes,conf,half,input_shape=(320,320),cpu=cpu)
         cv2.imshow("img",image)
         ch = cv2.waitKey(0)
         if ch == ord("q"): break
