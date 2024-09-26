@@ -26,7 +26,7 @@ model_type = "shufflenet"
 
 if model_type == "shufflenet":
     from lib.core.model.centernet import CenterNet
-    conf = 0.2
+    conf = 0.25
     model = CenterNet(nc=len(classes))
     if model_path != "":
         model = load_model(model,model_path)
@@ -92,7 +92,7 @@ video = True
 half = False 
 cpu = True 
 trace = True 
-
+openvino_exp = True 
 
 if cpu:
     model.cpu()
@@ -109,15 +109,20 @@ if trace:
     model = torch.jit.trace(model, dummy_input)
     print("End Tracing")
 
+if openvino_exp:
+    import openvino as ov
+    model =  ov.compile_model(ov.convert_model(model, example_input=dummy_input))
 
 
-video_path = "/home/rivian/Desktop/2_2023-07-31-11.36.49_novis_output.mp4"
+
+
+video_path = "G:/2_18.00.00_novis_output.avi"
 #video_path = 0
 if video:
     cap = cv2.VideoCapture(video_path)
     while 1:
         ret,img = cap.read()
-        image,annos = infer_image(model,img,classes,conf,half,input_shape=(320,320),cpu=cpu)
+        image,annos = infer_image(model,img,classes,conf,half,input_shape=(320,320),cpu=cpu,openvino_exp=openvino_exp)
         #print(annos)
         cv2.imshow("img",image)
         ch = cv2.waitKey(1)
@@ -127,7 +132,7 @@ if video:
 else:
     files = glob(folder+"/*.jpg") + glob(folder+"/*.png")
     for i in files:
-        image,annos = infer_image(model,i,classes,conf,half,input_shape=(320,320),cpu=cpu)
+        image,annos = infer_image(model,i,classes,conf,half,input_shape=(320,320),cpu=cpu,openvino_exp=openvino_exp)
         cv2.imshow("img",image)
         ch = cv2.waitKey(0)
         if ch == ord("q"): break

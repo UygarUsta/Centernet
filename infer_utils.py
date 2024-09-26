@@ -8,7 +8,7 @@ import time
 
 
 
-def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,320),cpu = False):
+def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,320),cpu = False,openvino_exp=False):
     #<class_name> <confidence> <left> <top> <right> <bottom>
     #files = glob(folder + "val_images/*.jpg") + glob(folder + "val_images/*.png")
     if cpu:
@@ -41,7 +41,13 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
         with torch.no_grad():
             images = torch.from_numpy(np.asarray(image_data)).type(torch.FloatTensor).to(device)
             if half: images = images.half()
-            hm,wh,offset = model(images)
+            if not openvino_exp:
+              hm,wh,offset = model(images)
+            if openvino_exp:
+               output = model(images) # hm,wh,offset
+               hm = torch.tensor(output[0])
+               wh = torch.tensor(output[1])
+               offset = torch.tensor(output[2])
         if half: 
             hm  = hm.half()
             wh = wh.half()
