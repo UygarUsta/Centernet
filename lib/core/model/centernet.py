@@ -22,7 +22,7 @@ import timm
 class Net(nn.Module):
     def __init__(self, ):
         super().__init__()
-        struct = 'ShuffleNetV2'
+        struct = 'Mobilenetv2'
         if 'Mobilenetv2' in struct:
             self.model = timm.create_model('mobilenetv2_100', pretrained=True, features_only=True,exportable=True)
         elif 'ShuffleNetV2' in struct:
@@ -114,11 +114,11 @@ class CenterNet(nn.Module):
 
         fpn_fm=self.fpn(fms)
 
-        cls, offset,wh = self.head(fpn_fm)
+        cls, wh,  offset = self.head(fpn_fm)
 
 
         if not self.inference:
-            return cls,offset,wh*16 #,angle
+            return cls,wh*16 ,offset#,angle
         else:
             detections = self.decode(cls, wh*16, self.down_ratio)
             return detections
