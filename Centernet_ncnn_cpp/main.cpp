@@ -10,7 +10,9 @@
 #include <cmath>
 #include <cpu.h>
 #include <chrono>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 using namespace std;
 using namespace cv;
 
@@ -114,10 +116,31 @@ int main() {
         return -1;
     }
 
-    vector<string> test_folder = {
-        "/mnt/e/derpetv5_xml/val_images/57_vlcsnap-2023-04-06-13h50m25s895.png"
-    };
+    // vector<string> test_folder = {
+    //     "/mnt/e/derpetv5_xml/val_images/57_vlcsnap-2023-04-06-13h50m25s895.png"
+    // };
+    vector<string> test_folder;
+    string dir_path = "/mnt/e/ComfyUI_windows_portable_nvidia/ComfyUI_windows_portable/ComfyUI/output";
+    // Iterate through the directory
+    for (const auto& entry : fs::directory_iterator(dir_path)) {
+        // Check if the file is a regular file and has a .jpg extension
+        if (entry.is_regular_file() && entry.path().extension() == ".jpg") {
+            // Append the file path to the vector
+            test_folder.push_back(entry.path().string());
+        }
 
+        if (entry.is_regular_file() && entry.path().extension() == ".png") {
+            // Append the file path to the vector
+            test_folder.push_back(entry.path().string());
+        }
+
+        if (entry.is_regular_file() && entry.path().extension() == ".JPG") {
+            // Append the file path to the vector
+            test_folder.push_back(entry.path().string());
+        }
+    }
+
+    int photo_count = 0;
     for (const auto& img_path : test_folder) {
         std::cout<< img_path;
         Mat img = imread(img_path);
@@ -191,20 +214,31 @@ int main() {
              float ymin = (box.ymin * image.rows) / input_height ;
              float xmax = (box.xmax * image.cols) / input_width ;
              float ymax = (box.ymax * image.rows) / input_height ;
-        std::cout << "Box: [" << box.xmin << ", " << box.ymin << ", " << box.xmax << ", " << box.ymax << "] Score: " << box.score << std::endl;
-        rectangle(img, Point(box.xmin,box.ymin), Point(box.xmax,box.ymax), 
-                    Scalar(255, 0, 0), 
-                    3, LINE_8);
+             int label = (int) box.label;
+             float score = box.score;
+        // std::cout << "Box: [" << box.xmin << ", " << box.ymin << ", " << box.xmax << ", " << box.ymax << "] Score: " << box.score << std::endl;
+        // rectangle(img, Point(box.xmin,box.ymin), Point(box.xmax,box.ymax), 
+        //             Scalar(255, 0, 0), 
+        //             3, LINE_8);
         rectangle(image, Point(xmin,ymin), Point(xmax,ymax), 
                     Scalar(255, 0, 0), 
                     3, LINE_8);
+        putText(image, //target image
+            to_string(label) + " Score: " + to_string(score), //text
+            Point(xmin,ymin-4), //top-left position
+            FONT_HERSHEY_DUPLEX,
+            1.0,
+            CV_RGB(118, 185, 0), //font color
+            2);
+
     }
 
         
         //imshow("Image", image);
-        cv::imwrite("img.jpg",img);
-        cv::imwrite("image.jpg",image);
+        //cv::imwrite("res/"+ to_string(photo_count)+".jpg",img);
+        cv::imwrite("res/"+ to_string(photo_count)+"_orig.jpg",image);
         //waitKey(0);   
+        photo_count += 1;
     }
 
     return 0;
