@@ -16,10 +16,10 @@ for i in f:
 print(classes)
 
 
-folder = "./"#"/home/rivian/Desktop/Datasets/widerface" #"/home/rivian/Desktop/Datasets/coco_mini_train"
+folder = r"C:\Users\PC\Pictures\_" #r"G:\COCO\val2017" #"E:/derpetv5_xml" #"/home/rivian/Desktop/Datasets/derpet_v4_label_tf" #"/home/rivian/Desktop/Datasets/coco_mini_train"
 #folder = os.path.join(folder,"val_images") #place to val
 
-model_path = "best_epoch_weights_mbv2_shufflenet_cocomini.pth" #"last_epoch_weights.pth" #"cplusr18_dv5_best_epoch_weights.pth" #"best_epoch_weights.pth" #"best_epoch_weights_mbv2_shufflenet_cocomini.pth" #"best_epoch_weights_cplus_r18_cocomini_0.162map.pth"  #"best_epoch_weights_fe_cplus_r18_map605_great_900img.pth" #"best_epoch_weights.pth" #"pretrained-hardnet.pth"
+model_path = "last_epoch_weights.pth" #"pretrained-hardnet.pth"
 device = "cuda"
 model_type = "shufflenet"
 
@@ -39,7 +39,7 @@ if model_type == "resnet50":
         model = load_model(model,model_path)
 
 if model_type == "CenterNetPlus":
-    conf = 0.25
+    conf = 0.4
     model = CenterNetPlus(True,len(classes),'r18')
     if model_path != "":
         model = load_model(model,model_path)
@@ -78,16 +78,8 @@ if model_type == "DLA":
 if model_type == "hardnet":
     from hardnet import get_pose_net
     device = "cuda"
-    conf = 0.29
-    model = get_pose_net(85,{"hm":len(classes),"offset":2,"wh":2})
-    if model_path != "":
-        model = load_model(model,model_path)
-
-if model_type == "mobilenetv2":
-    from mobilenetv2 import get_mobile_net
-    device = "cuda"
     conf = 0.2
-    model = get_mobile_net(5,{'hm':len(classes),'wh':2,'offset':2},head_conv=24)
+    model = get_pose_net(85,{"hm":len(classes),"offset":2,"wh":2})
     if model_path != "":
         model = load_model(model,model_path)
 
@@ -101,6 +93,7 @@ half = False
 cpu = False 
 trace = False 
 openvino_exp = False 
+export_onnx = False 
 
 if cpu:
     model.cpu()
@@ -110,8 +103,8 @@ if half:
     model.half()
 
 if trace:
-    input_height = 512
-    input_width = 512
+    input_height = 320
+    input_width = 320
     dummy_input = torch.randn(1, 3, input_height, input_width).to(device)
     print("Start Tracing")
     model = torch.jit.trace(model, dummy_input)
@@ -119,46 +112,65 @@ if trace:
 
 if openvino_exp:
     import openvino as ov
-    #import openvino.properties.intel_cpu as intel_cpu
-    core = ov.Core()
     input_height = 512
     input_width = 512
     dummy_input = torch.randn(1, 3, input_height, input_width).to(device)
-    #core.set_property("CPU", intel_cpu.sparse_weights_decompression_rate(0.8))
     model =  ov.compile_model(ov.convert_model(model, example_input=dummy_input))
-    #model = core.compile_model("cnextatto_int8.xml", 'CPU')
-    #model = core.read_model(model="quantized_model_openvino.xml")
-    #model = core.compile_model(model, "CPU")
 
 
+if export_onnx:
+    input_width = 512
+    input_height = 512
+    torch_input = torch.randn(1, 3, input_width, input_height)
+    onnx_program = torch.onnx.dynamo_export(model, torch_input)
+    #onnx_program.save("mbv2_shufflenet_widerface.onnx")
 
-video_path = "/home/rivian/Desktop/17_2022-11-09-14.26.56_derpet-converted.mp4"
-video_path = 0
+save_xml = True
+if save_xml :
+    if not os.path.isdir(os.path.join(folder,"annos")):
+        os.mkdir(os.path.join(folder,"annos"))
+    from converter import Converter
+    convert = Converter(os.path.join(folder,"annos"))
+    
+
+#video_path = r"E:\ESHOT 2024\Geshot Gediz 2 Garaji Gorselleri\Videolar\Otokar Ters Depo.avi"
+video_path = r"G:\0010.mp4" #0 #r"G:\8_2023-07-31-11.37.01_novis_output.avi"
 if video:
     cap = cv2.VideoCapture(video_path)
     while 1:
         ret,img = cap.read()
+        #img = cv2.resize(img,(1280,720))
         img = img[...,::-1]
-        fps1 = time.time()
-        image,annos = infer_image(model,img,classes,conf,half,input_shape=(512,512),cpu=cpu,openvino_exp=openvino_exp)
-        fps2 = time.time()
-        fps = 1 / (fps2-fps1)
+        image,annos = infer_image(model,img,classes,conf,half,input_shape=(320,320),cpu=cpu,openvino_exp=openvino_exp)
+        image = cv2.resize(image,(1280,720))
         #print(annos)
-        cv2.putText(image,f'FPS:{fps:.2f}',(200,100),cv2.FONT_HERSHEY_COMPLEX,1,(255,0,255),2)
         cv2.imshow("img",image[...,::-1])
         ch = cv2.waitKey(1)
         if ch == ord("q"): break
 
 
 else:
-    files = glob(folder+"/*.jpg") + glob(folder+"/*.png")
+    files = glob(folder+"/*.jpg") + glob(folder+"/*.png") + glob(folder+"/*.JPG")
     for i in files:
-        image = cv2.imread(i)
-        image = image[...,::-1]
+        print(i)
+        if save_xml:
+            annotations = []
         image,annos = infer_image(model,i,classes,conf,half,input_shape=(512,512),cpu=cpu,openvino_exp=openvino_exp)
-        image = image[...,::-1]
+        if save_xml:
+            for b in annos:
+                xmin = b[0]
+                ymin = b[1]
+                xmax = b[2]
+                ymax = b[3]
+                class_ = b[4]
+                annotations.append([xmin,ymin,xmax,ymax,class_])
         image = cv2.resize(image,(1280,720))
-        cv2.imshow("img",image)
+        cv2.imshow("img",image[...,::-1])
         ch = cv2.waitKey(0)
         if ch == ord("q"): break
-        #if ch == ord("s"): cv2.imwrite("image.jpg",image)
+        if ch == ord("s"): 
+            if save_xml:
+                size_ = cv2.imread(i).shape
+                convert(i.split("\\")[-1],size_,annotations)
+            else:
+                continue
