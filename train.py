@@ -59,7 +59,7 @@ with open("classes.txt","w") as f:
 
 pretrained = True
 model_type = "shufflenet"
-model_path = "hardnet85_base.pth"
+model_path = "best_epoch_weights_mbv2_shufflenet_cocomini.pth"
 
 if model_type == "shufflenet":
     from lib.core.model.centernet import CenterNet
@@ -130,7 +130,7 @@ val_dataset = CenternetDataset(val_images,val_annotations,input_shape,classes,le
 
 cuda = True
 
-fp16 = False
+fp16 = True
 if fp16:
     from torch.cuda.amp import GradScaler as GradScaler
     scaler = GradScaler()
