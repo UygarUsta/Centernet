@@ -3,7 +3,7 @@ from functools import partial
 
 import torch
 import torch.nn.functional as F
-
+import numpy as np
 
 def focal_loss(pred, target):
     pred = pred.permute(0, 2, 3, 1)
@@ -50,6 +50,73 @@ def reg_l1_loss(pred, target, mask):
     loss = F.l1_loss(pred * expand_mask, target * expand_mask, reduction='sum')
     loss = loss / (mask.sum() + 1e-4)
     return loss
+
+
+
+def ciou_loss(pred,target,weight,avg_factor=None,eps=1e-5):
+        """CIoU loss.
+        Computing the CIoU loss between a set of predicted bboxes and target bboxes.
+        """
+        """CIoU loss.
+            Computing the CIoU loss between a set of predicted bboxes and target bboxes.
+            """
+        #pred = torch.clamp(pred, 1e-6, 128)
+
+
+        pos_mask = weight > 0
+        weight = weight[pos_mask].float()
+        if avg_factor is None:
+            avg_factor = torch.sum(pos_mask) + eps
+        bboxes1 = torch.reshape(pred[pos_mask], (-1, 4)).float()
+        bboxes2 = torch.reshape(target[pos_mask], (-1, 4)).float()
+
+
+
+        lt = torch.max(bboxes1[:, :2], bboxes2[:, :2])  # [rows, 2]
+        rb = torch.min(bboxes1[:, 2:], bboxes2[:, 2:])  # [rows, 2]
+        wh = (rb - lt + 1).clamp(min=0.)
+
+
+        overlap = wh[:, 0] * wh[:, 1]
+        ap = (bboxes1[:, 2] - bboxes1[:, 0] + 1) * (bboxes1[:, 3] - bboxes1[:, 1] + 1)
+        ag = (bboxes2[:, 2] - bboxes2[:, 0] + 1) * (bboxes2[:, 3] - bboxes2[:, 1] + 1)
+        ious = overlap / (ap + ag - overlap)
+
+        # cal outer boxes
+        outer_left_up = torch.min(bboxes1[:, :2], bboxes2[:, :2])
+        outer_right_down = torch.max(bboxes1[:, 2:], bboxes2[:, 2:])
+        outer = (outer_right_down - outer_left_up).clamp(min=0)
+
+        outer_diagonal_line = (outer[:, 0])**2 + (outer[:, 1])**2
+
+        boxes1_center = (bboxes1[:, :2] + bboxes1[:, 2:] + 1) * 0.5
+        boxes2_center = (bboxes2[:, :2] + bboxes2[:, 2:] + 1) * 0.5
+        center_dis = (boxes1_center[:, 0] - boxes2_center[:, 0])**2 + \
+                     (boxes1_center[:, 1] - boxes2_center[:, 1])**2
+
+        boxes1_size = (bboxes1[:, 2:] - bboxes1[:, :2]).clamp(min=0)
+        boxes2_size = (bboxes2[:, 2:] - bboxes2[:, :2]).clamp(min=0)
+
+        v = (4.0 / (np.pi ** 2)) * \
+            (torch.atan(boxes2_size[:, 0] / (boxes2_size[:, 1] + eps)) -
+                      torch.atan(boxes1_size[:, 0] / (boxes1_size[:, 1] + eps)))**2
+
+        S = (ious> 0.5).float()
+        alpha = S * v / (1 - ious + v)
+
+        cious = ious - (center_dis / outer_diagonal_line) - alpha * v
+
+        cious = 1 - cious
+
+        cious=cious*weight
+
+        ## filter out the nan loss
+        nan_index=~torch.isnan(cious)
+        
+        cious=cious[nan_index]
+
+
+        return torch.sum(cious) / avg_factor
 
 def weights_init(net, init_type='normal', init_gain=0.02):
     def init_func(m):
