@@ -5,6 +5,22 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
+
+def iou_aware_loss(iou_pred, actual_iou, mask):
+    """
+    iou_pred: [N] predicted IoUs in [0,1]
+    actual_iou: [N] actual IoU for each box
+    mask: [N] valid box mask
+    """
+    mask = mask > 0
+    if mask.sum() == 0:
+        return torch.tensor(0.0, device=iou_pred.device, requires_grad=True)
+
+    pred_iou = iou_pred[mask]
+    true_iou = actual_iou[mask]
+    # e.g. MSE loss
+    return torch.nn.MSELoss()(pred_iou, true_iou)
+
 def focal_loss(pred, target):
     pred = pred.permute(0, 2, 3, 1)
 

@@ -25,9 +25,9 @@ def calculate_eval(model,cocoGt,classes,folder):
         try:
             with torch.no_grad():
                 images = torch.from_numpy(np.asarray(image_data)).type(torch.FloatTensor).cuda()
-                hm,wh,offset = model(images)
+                hm,wh,offset,iou_pred = model(images)
 
-            outputs = decode_bbox(hm,wh,offset,confidence=0.05)
+            outputs = decode_bbox(hm,wh,offset,iou_pred,confidence=0.05)
             results = postprocess(outputs,True,image_shape,input_shape, True, 0.3) #letterbox true
             top_label   = np.array(results[0][:, 5], dtype = 'int32')
             top_conf    = results[0][:, 4]

@@ -14,7 +14,7 @@ def pool_nms(heat, kernel = 3):
 
 
 
-def decode_bbox(pred_hms, pred_whs, pred_offsets, confidence=0.3, cuda=True):
+def decode_bbox(pred_hms, pred_whs, pred_offsets,pred_ious, confidence=0.3, cuda=True):
     #-------------------------------------------------------------------------#
     #   当利用512x512x3图片进行coco数据集预测的时候
     #   h = w = 128 num_classes = 80
@@ -39,6 +39,16 @@ def decode_bbox(pred_hms, pred_whs, pred_offsets, confidence=0.3, cuda=True):
         heat_map    = pred_hms[batch].permute(1, 2, 0).view([-1, c])
         pred_wh     = pred_whs[batch].permute(1, 2, 0).view([-1, 2])
         pred_offset = pred_offsets[batch].permute(1, 2, 0).view([-1, 2])
+
+        if pred_ious is not None:
+            # shape could be [b, H, W] or [b, 1, H, W]
+            iou_map = pred_ious[batch]
+            if iou_map.dim() == 3 and iou_map.shape[0] == 1:
+                iou_map = iou_map.squeeze(0)  
+            # Now iou_map is [H, W]
+            iou_map = iou_map.view(-1)  # flatten to [H*W]
+        else:
+            iou_map = None
 
         yv, xv      = torch.meshgrid(torch.arange(0, output_h), torch.arange(0, output_w))
         #-------------------------------------------------------------------------#
@@ -81,7 +91,15 @@ def decode_bbox(pred_hms, pred_whs, pred_offsets, confidence=0.3, cuda=True):
         bboxes = torch.cat([xv_mask - half_w, yv_mask - half_h, xv_mask + half_w, yv_mask + half_h], dim=1)
         bboxes[:, [0, 2]] /= output_w
         bboxes[:, [1, 3]] /= output_h
-        detect = torch.cat([bboxes, torch.unsqueeze(class_conf[mask],-1), torch.unsqueeze(class_pred[mask],-1).float()], dim=-1)
+
+        if iou_map is not None:
+            iou_mask = iou_map[mask]   # shape [N_filtered]
+            # Combine with class confidence
+            final_conf = class_conf[mask] * iou_mask
+        else:
+            final_conf = class_conf[mask]
+
+        detect = torch.cat([bboxes, torch.unsqueeze(final_conf,-1), torch.unsqueeze(class_pred[mask],-1).float()], dim=-1)
         detects.append(detect)
 
     return detects

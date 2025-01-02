@@ -28,11 +28,9 @@ class Colors:
 colors = Colors() 
 
 
-
-def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,320),cpu = False,openvino_exp=False):
+def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (512,512),cpu = False,openvino_exp=False):
     #<class_name> <confidence> <left> <top> <right> <bottom>
     #files = glob(folder + "val_images/*.jpg") + glob(folder + "val_images/*.png")
-    
     if cpu:
        device = torch.device("cpu")
        cuda = False 
@@ -52,10 +50,12 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
     #image_data = resize_image(image,tuple(input_shape),letterbox_image=True) 
     image_data = resize_numpy(image,tuple(input_shape),letterbox_image=False)
 
+
+    image_data = np.expand_dims(np.transpose(preprocess_input(np.array(image_data, dtype='float32')), (2, 0, 1)), 0)
+    
     lf = max(round(sum(image_shape) / 2 * 0.003), 2) #rectangle thickness
     tf = max(lf - 1, 1)  # font thickness
 
-    image_data = np.expand_dims(np.transpose(preprocess_input(np.array(image_data, dtype='float32')), (2, 0, 1)), 0)
     image = np.array(image)
     fpre = time.time()
     print(f"Preprocessing took: {fpre - fps1} ms")
@@ -66,22 +66,24 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
             images = torch.from_numpy(np.asarray(image_data)).type(torch.FloatTensor).to(device)
             if half: images = images.half()
             if not openvino_exp:
-              hm,wh,offset = model(images)
+              hm,wh,offset,iou_pred = model(images)
             if openvino_exp:
                output = model(images) # hm,wh,offset
                hm = torch.tensor(output[0])
                wh = torch.tensor(output[1])
                offset = torch.tensor(output[2])
+               iou_pred = torch.tensor(output[2])
         if half: 
             hm  = hm.half()
             wh = wh.half()
             offset = offset.half()
+            iou_pred = iou_pred.half()
         f2 = time.time()
-       # print(f"Model inference time: {f2-f1} ms , FPS: {1 / (f2-f1)}")
+        print(f"Model inference time: {f2-f1} ms , FPS: {1 / (f2-f1)}")
 
         fp1 = time.time()
 
-        outputs = decode_bbox(hm,wh,offset,confidence=confidence,cuda=cuda)
+        outputs = decode_bbox(hm,wh,offset,iou_pred,confidence=confidence,cuda=cuda)
         results = postprocess(outputs,True,image_shape,input_shape, False, 0.3) #letterbox true
 
         fp2 = time.time()
@@ -89,9 +91,6 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
         top_label   = np.array(results[0][:, 5], dtype = 'int32')
         top_conf    = results[0][:, 4]
         top_boxes   = results[0][:, :4]
-
-        
-        
         for (conf,label,box) in zip(top_conf,top_label,top_boxes):
             ymin = box[0]
             xmin = box[1] 
@@ -105,7 +104,6 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
             class_label = label
             name = f'{classes[class_label]} {conf:.2f}'
             box_annos.append([xmin,ymin,xmax,ymax,str(name),conf])
-
 
             p1, p2 = (int(box[1]), int(box[0])), (int(box[3]), int(box[2]))
             w, h = cv2.getTextSize(name, 0, fontScale=lf / 3, thickness=tf)[0]  # text width, height

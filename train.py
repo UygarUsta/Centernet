@@ -18,24 +18,24 @@ import matplotlib.pyplot as plt
 from calc_coco_val import gt_check
 from centernet import CenterNet_Resnet50
 from torch.utils.data import DataLoader
-from utils_fit_ciou import worker_init_fn,fit_one_epoch,seed_everything
+from utils_fit import worker_init_fn,fit_one_epoch,seed_everything
 from functools import partial
 from CenternetPlus.centernet_plus import CenterNetPlus
 from infer_utils import load_model,hardnet_load_model
 #from dlamodel import get_pose_net
 #from centernet_resnet import resnet_18
 
-folder = "/home/rivian/Desktop/Datasets/derpet_v4_label_tf"
+folder = "/home/rivian/Desktop/Datasets/derpetv5_xml"
 
-input_shape = (320,320)
+input_shape = (512,512)
 batch_size = 8#16
-epochs = 100
+epochs = 200
 num_workers = 8
 optimizer_type = "adam"
 lr_decay_type = "cos"
 
-train_images = glob(os.path.join(folder,"train_images","*.jpg")) + glob(os.path.join(folder,"train_images","*.png"))
-val_images = glob(os.path.join(folder,"val_images","*.jpg")) + glob(os.path.join(folder,"val_images","*.png"))
+train_images = glob(os.path.join(folder,"train_images","*.jpg")) + glob(os.path.join(folder,"train_images","*.png")) + glob(os.path.join(folder,"train_images","*.JPG"))
+val_images = glob(os.path.join(folder,"val_images","*.jpg")) + glob(os.path.join(folder,"val_images","*.png")) + glob(os.path.join(folder,"val_images","*.JPG"))
 
 train_annotatons = sorted(glob(os.path.join(folder,"train_images","*.xml")))
 val_annotations =  sorted(glob(os.path.join(folder,"val_images","*.xml")))
@@ -49,6 +49,7 @@ cocoGt = COCO("val_output_coco.json")
 classes = []
 for (i,v) in cocoGt.cats.items():
     classes.append(v["name"])
+
 
 print(f"CLASSES = {classes}")
 
