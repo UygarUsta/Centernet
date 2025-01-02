@@ -7,10 +7,32 @@ import cv2
 import time 
 
 
+class Colors:
+    # Ultralytics color palette https://ultralytics.com/
+    def __init__(self):
+        # hex = matplotlib.colors.TABLEAU_COLORS.values()
+        hexs = ('FF3838', 'FF9D97', 'FF701F', 'FFB21D', 'CFD231', '48F90A', '92CC17', '3DDB86', '1A9334', '00D4BB',
+                '2C99A8', '00C2FF', '344593', '6473FF', '0018EC', '8438FF', '520085', 'CB38FF', 'FF95C8', 'FF37C7')
+        self.palette = [self.hex2rgb(f'#{c}') for c in hexs]
+        self.n = len(self.palette)
+
+    def __call__(self, i, bgr=False):
+        c = self.palette[int(i) % self.n]
+        return (c[2], c[1], c[0]) if bgr else c
+
+    @staticmethod
+    def hex2rgb(h):  # rgb order (PIL)
+        return tuple(int(h[1 + i:1 + i + 2], 16) for i in (0, 2, 4))
+
+
+colors = Colors() 
+
+
 
 def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,320),cpu = False,openvino_exp=False):
     #<class_name> <confidence> <left> <top> <right> <bottom>
     #files = glob(folder + "val_images/*.jpg") + glob(folder + "val_images/*.png")
+    
     if cpu:
        device = torch.device("cpu")
        cuda = False 
@@ -30,6 +52,8 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
     #image_data = resize_image(image,tuple(input_shape),letterbox_image=True) 
     image_data = resize_numpy(image,tuple(input_shape),letterbox_image=False)
 
+    lf = max(round(sum(image_shape) / 2 * 0.003), 2) #rectangle thickness
+    tf = max(lf - 1, 1)  # font thickness
 
     image_data = np.expand_dims(np.transpose(preprocess_input(np.array(image_data, dtype='float32')), (2, 0, 1)), 0)
     image = np.array(image)
@@ -53,7 +77,7 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
             wh = wh.half()
             offset = offset.half()
         f2 = time.time()
-        print(f"Model inference time: {f2-f1} ms , FPS: {1 / (f2-f1)}")
+       # print(f"Model inference time: {f2-f1} ms , FPS: {1 / (f2-f1)}")
 
         fp1 = time.time()
 
@@ -65,6 +89,9 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
         top_label   = np.array(results[0][:, 5], dtype = 'int32')
         top_conf    = results[0][:, 4]
         top_boxes   = results[0][:, :4]
+
+        
+        
         for (conf,label,box) in zip(top_conf,top_label,top_boxes):
             ymin = box[0]
             xmin = box[1] 
@@ -76,11 +103,19 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (320,
             xmax = int(xmax)
             ymax = int(ymax)
             class_label = label
-            name = classes[class_label]
+            name = f'{classes[class_label]} {conf:.2f}'
             box_annos.append([xmin,ymin,xmax,ymax,str(name),conf])
-            cv2.rectangle(image,(xmin,ymin),(xmax,ymax),(0,255,0),2)
-            cv2.putText(image,str(name),(xmin-3,ymin),cv2.FONT_HERSHEY_COMPLEX,1,(255,0,255),2)
-            cv2.putText(image,str(conf),(xmax-3,ymin),cv2.FONT_HERSHEY_COMPLEX,1,(255,0,255),2)
+
+
+            p1, p2 = (int(box[1]), int(box[0])), (int(box[3]), int(box[2]))
+            w, h = cv2.getTextSize(name, 0, fontScale=lf / 3, thickness=tf)[0]  # text width, height
+            outside = p1[1] - h >= 3
+            p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
+            cv2.rectangle(image, p1, p2, colors(class_label, True), -1, cv2.LINE_AA)  # filled
+
+            cv2.rectangle(image,(xmin,ymin),(xmax,ymax),colors(class_label, True),lf) #(0,255,0)
+            cv2.putText(image,str(name),(p1[0], p1[1] - 2 if outside else p1[1] + h + 2),cv2.FONT_HERSHEY_COMPLEX,1,(255,255,255),tf) #(255,0,255)
+            #cv2.putText(image,str(conf),(p1[0], p1[1] - 2 if outside else p1[1] + h + 2),cv2.FONT_HERSHEY_COMPLEX,1,(255,255,255),tf)
 
             
     except Exception as e:

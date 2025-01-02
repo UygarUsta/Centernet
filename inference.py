@@ -8,6 +8,14 @@ import os
 from CenternetPlus.centernet_plus import CenterNetPlus
 import time 
 
+video = True
+half = False 
+cpu = False 
+trace = False 
+openvino_exp = False 
+export_onnx = False 
+
+
 f = open("classes.txt","r").readlines()
 classes = []
 for i in f:
@@ -18,12 +26,14 @@ print(classes)
 input_height = 512
 input_width = 512
 
-folder = r"G:\COCO\val2017" #r"E:\derpetv5_xml\val_images" #r"G:\COCO\val2017" #"E:/derpetv5_xml" #"/home/rivian/Desktop/Datasets/derpet_v4_label_tf" #"/home/rivian/Desktop/Datasets/coco_mini_train"
+folder = r"E:\ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\output" #r"E:\derpetv5_xml\val_images" #r"G:\COCO\val2017" #"E:/derpetv5_xml" #"/home/rivian/Desktop/Datasets/derpet_v4_label_tf" #"/home/rivian/Desktop/Datasets/coco_mini_train"
 #folder = os.path.join(folder,"val_images") #place to val
+video_path = r"G:\vlc-record-2024-12-09-09h28m27s-2_12.27.05_novis_output.avi-.avi"
 
 model_path = "best_epoch_weights_ciou_fe_mbv2_shufflenet.pth" #"pretrained-hardnet.pth"
 device = "cuda"
 model_type = "shufflenet"
+
 
 
 if model_type == "shufflenet":
@@ -90,12 +100,6 @@ model.cuda()
 #model = torch.compile(model) #experimental
 
 model.eval()
-video = False
-half = False 
-cpu = False 
-trace = False 
-openvino_exp = False 
-export_onnx = False 
 
 if cpu:
     model.cpu()
@@ -128,8 +132,6 @@ if save_xml :
     from converter import Converter
     convert = Converter(os.path.join(folder,"annos"))
     
-
-video_path = r"E:\ESHOT 2024\Geshot Gediz 2 Garaji Gorselleri\Videolar\Otokar Ters Depo.avi"
 #video_path = 0 #r"G:\youtube-dl\Tutorial Shorts - Filling Up At Pump-mIc1TD6c7Ig.mp4" #0 #r"G:\8_2023-07-31-11.37.01_novis_output.avi"
 if video:
     cap = cv2.VideoCapture(video_path)
@@ -141,7 +143,7 @@ if video:
         image,annos = infer_image(model,img,classes,conf,half,input_shape=(input_height,input_width),cpu=cpu,openvino_exp=openvino_exp)
         #image = cv2.resize(image,(1280,720))
         #print(annos)
-        cv2.imshow("img",image[...,::-1])
+        cv2.imshow("ciou_centernet",image[...,::-1])
         ch = cv2.waitKey(1)
         if ch == ord("q"): break
 
@@ -162,7 +164,7 @@ else:
                 class_ = b[4]
                 annotations.append([xmin,ymin,xmax,ymax,class_])
         #image = cv2.resize(image,(1280,720))
-        cv2.imshow("img",image[...,::-1])
+        cv2.imshow("ciou_centernet",image[...,::-1])
         ch = cv2.waitKey(0)
         if ch == ord("q"): break
         if ch == ord("s"): 
