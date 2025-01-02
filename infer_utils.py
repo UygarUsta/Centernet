@@ -72,7 +72,7 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (512,
                hm = torch.tensor(output[0])
                wh = torch.tensor(output[1])
                offset = torch.tensor(output[2])
-               iou_pred = torch.tensor(output[2])
+               iou_pred = torch.tensor(output[3])
         if half: 
             hm  = hm.half()
             wh = wh.half()
