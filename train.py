@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from calc_coco_val import gt_check
 from centernet import CenterNet_Resnet50
 from torch.utils.data import DataLoader
-from utils_fit import worker_init_fn,fit_one_epoch,seed_everything
+from utils_fit_ciou import worker_init_fn,fit_one_epoch,seed_everything
 from functools import partial
 from CenternetPlus.centernet_plus import CenterNetPlus
 from infer_utils import load_model,hardnet_load_model
