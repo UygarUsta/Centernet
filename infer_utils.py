@@ -79,7 +79,7 @@ def infer_image(model,img,classes,confidence=0.05,half=False,input_shape = (512,
             offset = offset.half()
             iou_pred = iou_pred.half()
         f2 = time.time()
-        print(f"Model inference time: {f2-f1} ms , FPS: {1 / (f2-f1)}")
+        print(f"Model inference time: {f2-f1} ms")
 
         fp1 = time.time()
 
