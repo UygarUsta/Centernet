@@ -63,7 +63,8 @@ model_type = "shufflenet"
 model_path = "best_epoch_weights_mbv2_shufflenet_cocomini.pth"
 
 if model_type == "shufflenet":
-    from lib.core.model.centernet_psa_mbnet4 import CenterNet
+    from lib.core.model.centernet import CenterNet
+    #from lib.core.model.centernet_psa_mbnet4 import CenterNet
     model = CenterNet(nc=len(classes))
     if model_path != "":
         model = load_model(model,model_path)
