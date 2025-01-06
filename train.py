@@ -25,11 +25,11 @@ from infer_utils import load_model,hardnet_load_model
 #from dlamodel import get_pose_net
 #from centernet_resnet import resnet_18
 
-folder = "/home/rivian/Desktop/Datasets/derpetv5_xml"
+folder = "/home/rivian/Desktop/Datasets/coco_mini_train"
 
 input_shape = (512,512)
 batch_size = 8#16
-epochs = 200
+epochs = 100
 num_workers = 8
 optimizer_type = "adam"
 lr_decay_type = "cos"
@@ -63,7 +63,7 @@ model_type = "shufflenet"
 model_path = "best_epoch_weights_mbv2_shufflenet_cocomini.pth"
 
 if model_type == "shufflenet":
-    from lib.core.model.centernet import CenterNet
+    from lib.core.model.centernet_psa_mbnet4 import CenterNet
     model = CenterNet(nc=len(classes))
     if model_path != "":
         model = load_model(model,model_path)
@@ -191,10 +191,11 @@ gen_val = DataLoader(val_dataset  , shuffle = True, batch_size = batch_size, num
                                     drop_last=True, collate_fn=centernet_dataset_collate, sampler=val_sampler,
                                     worker_init_fn=partial(worker_init_fn, rank=rank, seed=seed))
 
+save_period = 5
 best_mean_AP = 0
 for epoch in range(epochs):
     set_optimizer_lr(optimizer, lr_scheduler_func, epoch)
-    mean_ap = fit_one_epoch(model_train,model,optimizer,epoch,epoch_step, epoch_step_val, gen, gen_val,epochs,cuda,fp16,scaler,20,cocoGt,classes,folder,best_mean_AP)
+    mean_ap = fit_one_epoch(model_train,model,optimizer,epoch,epoch_step, epoch_step_val, gen, gen_val,epochs,cuda,fp16,scaler,save_period,cocoGt,classes,folder,best_mean_AP)
     if mean_ap > best_mean_AP:
         best_mean_AP = mean_ap
 
